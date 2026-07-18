@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股融資增減 vs 指數比較圖</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 28px; margin: 20px 0 10px; }
+  .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 30px; }
+  .chart-box { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 30px; }
+  .chart-box h2 { font-size: 20px; margin-bottom: 15px; color: #1a73e8; }
+  .chart-box img { width: 100%; height: auto; display: block; border-radius: 8px; }
+  .footer { text-align: center; color: #999; font-size: 12px; padding: 20px 0; }
+  .footer a { color: #1a73e8; text-decoration: none; }
+  .update-time { text-align: center; font-size: 13px; color: #888; margin-bottom: 20px; }
+  @media (max-width: 768px) {
+    body { padding: 10px; }
+    h1 { font-size: 22px; }
+    .chart-box { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>台股融資增減 vs 指數比較圖</h1>
+  <p class="subtitle">2026 年每日資料 &middot; 藍線 = 指數 &middot; 紅綠柱 = 融資增減(張)</p>
+  <div id="updateTime" class="update-time">資料更新時間：載入中...</div>
+
+  <div class="chart-box">
+    <h2>上市加權指數 vs 融資增減</h2>
+    <img src="twse_chart.png" alt="上市加權指數 vs 融資增減" onerror="this.alt='圖表載入失敗'">
+  </div>
+
+  <div class="chart-box">
+    <h2>上櫃指數 vs 融資增減</h2>
+    <img src="tpex_chart.png" alt="上櫃指數 vs 融資增減" onerror="this.alt='圖表載入失敗'">
+  </div>
+
+  <div class="footer">
+    資料來源：
+    <a href="https://www.twse.com.tw" target="_blank">臺灣證券交易所</a> &
+    <a href="https://www.tpex.org.tw" target="_blank">證券櫃檯買賣中心</a> &
+    <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a>
+    <br>
+    自動更新時間：每日 18:00 (UTC+8)
+  </div>
+</div>
+
+<script>
+fetch("update_info.json")
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById("updateTime").textContent = "最後更新： " + d.update_time;
+  })
+  .catch(() => {
+    document.getElementById("updateTime").textContent = "最後更新時間未知";
+  });
+</script>
+</body>
+</html>
