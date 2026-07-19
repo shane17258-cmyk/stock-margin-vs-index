@@ -24,30 +24,25 @@ def safe_json_get(url, headers=None):
         pass
     return None
 
-def get_twse_margin(ymd):
-    url = f"https://www.twse.com.tw/rwd/zh/marginTrading/TWT93U?date={twse_date(ymd)}&response=json"
+def get_twse_margin_summary(ymd):
+    url = f"https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={twse_date(ymd)}&selectType=MS&response=json"
     data = safe_json_get(url)
-    if not data or data.get("stat") != "OK" or not data.get("data"):
+    if not data or data.get("stat") != "OK" or not data.get("tables"):
         return None
-    total_today = 0
-    total_prev = 0
-    valid = 0
-    for row in data["data"]:
-        t = row[6].replace(",", "")
-        p = row[2].replace(",", "")
-        if t.replace("-", "").isdigit() and p.replace("-", "").isdigit():
-            total_today += int(t)
-            total_prev += int(p)
-            valid += 1
-    if valid == 0:
-        return None
-    return {
-        "date": ymd.strftime("%Y-%m-%d"),
-        "margin_balance": total_today,
-        "margin_change": total_today - total_prev,
-    }
+    result = {"date": ymd.strftime("%Y-%m-%d")}
+    for table in data["tables"]:
+        for row in table.get("data", []):
+            if row[0] == "融資金額(仟元)":
+                result["margin_amount"] = int(row[5].replace(",", ""))
+                result["margin_amount_prev"] = int(row[4].replace(",", ""))
+            elif row[0] == "融資(交易單位)":
+                result["margin_shares"] = int(row[5].replace(",", ""))
+                result["margin_shares_prev"] = int(row[4].replace(",", ""))
+    if "margin_amount" in result:
+        return result
+    return None
 
-def get_tpex_margin(ymd):
+def get_tpex_margin(ymd, avg_price):
     url = f"https://www.tpex.org.tw/www/zh-tw/margin/balance?date={tpex_date(ymd)}"
     data = safe_json_get(url)
     if not data or data.get("stat") != "ok" or not data.get("tables"):
@@ -67,8 +62,9 @@ def get_tpex_margin(ymd):
         return None
     return {
         "date": ymd.strftime("%Y-%m-%d"),
-        "margin_balance": total_today,
-        "margin_change": total_today - total_prev,
+        "margin_balance": round(total_today * avg_price),
+        "margin_prev": round(total_prev * avg_price),
+        "margin_change": round((total_today - total_prev) * avg_price),
     }
 
 def get_index_from_yahoo(ticker):
@@ -120,12 +116,20 @@ def collect_all_data():
         d = datetime.date.fromisoformat(ds)
 
         if ds in twse_index:
-            m = get_twse_margin(d)
+            m = get_twse_margin_summary(d)
             if m:
-                twse_margin[ds] = m
-
-        if ds in tpex_index:
-            p = get_tpex_margin(d)
+                twse_margin[ds] = {
+                    "date": m["date"],
+                    "margin_balance": m["margin_amount"],
+                    "margin_change": m["margin_amount"] - m["margin_amount_prev"],
+                }
+                avg_price = m["margin_amount"] / m["margin_shares"] if m["margin_shares"] else 65
+                if ds in tpex_index:
+                    p = get_tpex_margin(d, avg_price)
+                    if p:
+                        tpex_margin[ds] = p
+        elif ds in tpex_index:
+            p = get_tpex_margin(d, 65)
             if p:
                 tpex_margin[ds] = p
 
@@ -140,15 +144,17 @@ def save_csv(filename, margin_data, index_data):
     all_dates = sorted(set(list(margin_data.keys()) + list(index_data.keys())))
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["date", "margin_balance", "margin_change", "index_value"])
+        writer.writerow(["date", "margin_balance", "margin_change", "index_value", "unit"])
         for dt in all_dates:
             m = margin_data.get(dt, {})
             idx = index_data.get(dt, "")
+            unit = "(仟元)"
             writer.writerow([
                 dt,
                 m.get("margin_balance", ""),
                 m.get("margin_change", ""),
                 idx if idx else "",
+                unit if m.get("margin_balance") is not None else "",
             ])
     print(f"  Saved {filepath} ({len(all_dates)} rows)")
 

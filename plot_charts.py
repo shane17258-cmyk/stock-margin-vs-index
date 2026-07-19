@@ -56,14 +56,14 @@ def plot_all():
         "台股上市加權指數 vs 融資餘額 (2026)",
         "twse_chart.png",
         "上市加權指數",
-        "融資餘額 (張)",
+        "融資餘額 (仟元)",
     )
     plot_single(
         "tpex_data.csv",
         "台股上櫃指數 vs 融資餘額 (2026)",
         "tpex_chart.png",
         "上櫃指數",
-        "融資餘額 (張)",
+        "融資餘額 (仟元)",
     )
     print("Done!")
 
