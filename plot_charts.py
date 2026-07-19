@@ -16,9 +16,9 @@ def plot_single(data_file, title, output_file, ylabel_idx, ylabel_margin):
     df = df.sort_values("date")
 
     df["index_value"] = pd.to_numeric(df["index_value"], errors="coerce")
-    df["margin_change"] = pd.to_numeric(df["margin_change"], errors="coerce")
+    df["margin_balance"] = pd.to_numeric(df["margin_balance"], errors="coerce")
 
-    df = df.dropna(subset=["index_value"])
+    df = df.dropna(subset=["index_value", "margin_balance"])
     df = df[df["date"] >= "2026-01-01"]
     df = df.set_index("date")
 
@@ -31,9 +31,7 @@ def plot_single(data_file, title, output_file, ylabel_idx, ylabel_margin):
     ax1.grid(True, alpha=0.3)
 
     ax2 = ax1.twinx()
-    margin = df["margin_change"].dropna()
-    colors = ["#e74c3c" if v > 0 else "#2ecc71" if v < 0 else "#999" for v in margin]
-    ax2.bar(margin.index, margin, color=colors, alpha=0.6, width=1.2, label="融資增減(張)")
+    ax2.plot(df.index, df["margin_balance"], color="#e74c3c", linewidth=2, label=ylabel_margin)
     ax2.set_ylabel(ylabel_margin, color="#e74c3c", fontsize=13)
     ax2.tick_params(axis="y", labelcolor="#e74c3c")
 
@@ -55,17 +53,17 @@ def plot_all():
     print("Generating charts...")
     plot_single(
         "twse_data.csv",
-        "台股上市加權指數 vs 融資增減 (2026)",
+        "台股上市加權指數 vs 融資餘額 (2026)",
         "twse_chart.png",
         "上市加權指數",
-        "融資增減 (張)",
+        "融資餘額 (張)",
     )
     plot_single(
         "tpex_data.csv",
-        "台股上櫃指數 vs 融資增減 (2026)",
+        "台股上櫃指數 vs 融資餘額 (2026)",
         "tpex_chart.png",
         "上櫃指數",
-        "融資增減 (張)",
+        "融資餘額 (張)",
     )
     print("Done!")
 
