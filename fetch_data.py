@@ -42,29 +42,27 @@ def get_twse_margin_summary(ymd):
         return result
     return None
 
-def get_tpex_margin(ymd, avg_price):
+def get_tpex_margin(ymd):
     url = f"https://www.tpex.org.tw/www/zh-tw/margin/balance?date={tpex_date(ymd)}"
     data = safe_json_get(url)
     if not data or data.get("stat") != "ok" or not data.get("tables"):
         return None
-    total_today = 0
-    total_prev = 0
-    valid = 0
+    summary = None
     for table in data["tables"]:
-        for row in table.get("data", []):
-            t = row[6].replace(",", "")
-            p = row[2].replace(",", "")
-            if t.replace("-", "").isdigit() and p.replace("-", "").isdigit():
-                total_today += int(t)
-                total_prev += int(p)
-                valid += 1
-    if valid == 0:
+        if "summary" in table:
+            summary = table["summary"]
+            break
+    if not summary or len(summary) < 2:
         return None
+    row = summary[1]
+    prev_amount = int(row[2].replace(",", ""))
+    current_amount = int(row[6].replace(",", ""))
+    change = current_amount - prev_amount
     return {
         "date": ymd.strftime("%Y-%m-%d"),
-        "margin_balance": round(total_today * avg_price),
-        "margin_prev": round(total_prev * avg_price),
-        "margin_change": round((total_today - total_prev) * avg_price),
+        "margin_balance": current_amount,
+        "margin_prev": prev_amount,
+        "margin_change": change,
     }
 
 def get_index_from_yahoo(ticker):
@@ -123,13 +121,12 @@ def collect_all_data():
                     "margin_balance": m["margin_amount"],
                     "margin_change": m["margin_amount"] - m["margin_amount_prev"],
                 }
-                avg_price = m["margin_amount"] / m["margin_shares"] if m["margin_shares"] else 65
                 if ds in tpex_index:
-                    p = get_tpex_margin(d, avg_price)
+                    p = get_tpex_margin(d)
                     if p:
                         tpex_margin[ds] = p
         elif ds in tpex_index:
-            p = get_tpex_margin(d, 65)
+            p = get_tpex_margin(d)
             if p:
                 tpex_margin[ds] = p
 

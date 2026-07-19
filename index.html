@@ -4,39 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>台股融資餘額 vs 指數比較圖</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
-  .container { max-width: 1200px; margin: 0 auto; }
+  .container { max-width: 1300px; margin: 0 auto; }
   h1 { text-align: center; font-size: 28px; margin: 20px 0 10px; }
   .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 30px; }
   .chart-box { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 30px; }
   .chart-box h2 { font-size: 20px; margin-bottom: 15px; color: #1a73e8; }
-  .chart-box img { width: 100%; height: auto; display: block; border-radius: 8px; }
+  .chart-container { width: 100%; height: 500px; }
   .footer { text-align: center; color: #999; font-size: 12px; padding: 20px 0; }
   .footer a { color: #1a73e8; text-decoration: none; }
   .update-time { text-align: center; font-size: 13px; color: #888; margin-bottom: 20px; }
+  .loading { text-align: center; color: #999; padding: 100px 0; font-size: 16px; }
   @media (max-width: 768px) {
     body { padding: 10px; }
     h1 { font-size: 22px; }
     .chart-box { padding: 10px; }
+    .chart-container { height: 350px; }
   }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>台股融資餘額 vs 指數比較圖</h1>
-  <p class="subtitle">2026 年每日資料 &middot; 藍線 = 指數 &middot; 紅線 = 融資餘額(仟元)</p>
+  <p class="subtitle">2026 年每日資料 &middot; 滑鼠移動顯示數值 &middot; 滾輪縮放</p>
   <div id="updateTime" class="update-time">資料更新時間：載入中...</div>
 
   <div class="chart-box">
     <h2>上市加權指數 vs 融資餘額</h2>
-    <img src="twse_chart.png?ts=20260719" alt="上市加權指數 vs 融資餘額" onerror="this.alt='圖表載入失敗'">
+    <div id="chart-twse" class="chart-container"><div class="loading">載入中...</div></div>
   </div>
 
   <div class="chart-box">
     <h2>上櫃指數 vs 融資餘額</h2>
-    <img src="tpex_chart.png?ts=20260719" alt="上櫃指數 vs 融資餘額" onerror="this.alt='圖表載入失敗'">
+    <div id="chart-tpex" class="chart-container"><div class="loading">載入中...</div></div>
   </div>
 
   <div class="footer">
@@ -50,14 +53,138 @@
 </div>
 
 <script>
-fetch("update_info.json")
-  .then(r => r.json())
-  .then(d => {
-    document.getElementById("updateTime").textContent = "最後更新： " + d.update_time;
-  })
-  .catch(() => {
-    document.getElementById("updateTime").textContent = "最後更新時間未知";
-  });
+function fmtNum(n) {
+  if (n == null || n === "") return "-";
+  return Number(n).toLocaleString("zh-TW");
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",");
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(",");
+    if (vals.length < 3) continue;
+    const date = vals[0].trim();
+    const margin = vals[1].trim();
+    const idx = vals[3] ? vals[3].trim() : "";
+    if (date && margin && idx) {
+      data.push({ date, margin: Number(margin), index: Number(idx) });
+    }
+  }
+  return data;
+}
+
+function renderChart(containerId, data, idxName, marginLabel) {
+  const dates = data.map(d => d.date);
+  const idxVals = data.map(d => d.index);
+  const marginVals = data.map(d => d.margin);
+
+  const chart = echarts.init(document.getElementById(containerId));
+
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(255,255,255,0.95)",
+      borderColor: "#ddd",
+      borderWidth: 1,
+      textStyle: { color: "#333", fontSize: 13 },
+      formatter: function(params) {
+        const date = params[0].axisValue;
+        let s = `<strong>${date}</strong><br/>`;
+        params.forEach(p => {
+          s += `${p.marker} ${p.seriesName}: <strong>${fmtNum(p.value)}</strong><br/>`;
+        });
+        return s;
+      }
+    },
+    legend: {
+      data: [idxName, marginLabel],
+      bottom: 0,
+      textStyle: { fontSize: 12 }
+    },
+    grid: { left: 80, right: 80, top: 20, bottom: 50 },
+    dataZoom: [
+      { type: "inside", start: 0, end: 100 },
+      { type: "slider", start: 0, end: 100, bottom: 25, height: 20 }
+    ],
+    xAxis: {
+      type: "category",
+      data: dates,
+      axisLabel: { rotate: 45, fontSize: 11 },
+      axisLine: { lineStyle: { color: "#ccc" } }
+    },
+    yAxis: [
+      {
+        type: "value",
+        name: idxName,
+        nameTextStyle: { color: "#1a73e8", fontSize: 13 },
+        axisLabel: { color: "#1a73e8", formatter: fmtNum },
+        splitLine: { lineStyle: { color: "#eee" } }
+      },
+      {
+        type: "value",
+        name: marginLabel,
+        nameTextStyle: { color: "#e74c3c", fontSize: 13 },
+        axisLabel: { color: "#e74c3c", formatter: fmtNum },
+        splitLine: { show: false }
+      }
+    ],
+    series: [
+      {
+        name: idxName,
+        type: "line",
+        data: idxVals,
+        yAxisIndex: 0,
+        smooth: true,
+        symbol: "none",
+        lineStyle: { color: "#1a73e8", width: 2 },
+        areaStyle: { color: "rgba(26,115,232,0.08)" }
+      },
+      {
+        name: marginLabel,
+        type: "line",
+        data: marginVals,
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: "none",
+        lineStyle: { color: "#e74c3c", width: 2 },
+        areaStyle: { color: "rgba(231,76,60,0.08)" }
+      }
+    ]
+  };
+
+  chart.setOption(option);
+  window.addEventListener("resize", () => chart.resize());
+}
+
+async function loadData() {
+  try {
+    const [twseResp, tpexResp, infoResp] = await Promise.all([
+      fetch("twse_data.csv"),
+      fetch("tpex_data.csv"),
+      fetch("update_info.json")
+    ]);
+    const twseText = await twseResp.text();
+    const tpexText = await tpexResp.text();
+    const info = await infoResp.json();
+
+    document.getElementById("updateTime").textContent = "最後更新： " + (info.update_time || "未知");
+
+    const twseData = parseCSV(twseText);
+    const tpexData = parseCSV(tpexText);
+
+    renderChart("chart-twse", twseData, "上市加權指數", "融資餘額 (仟元)");
+    renderChart("chart-tpex", tpexData, "上櫃指數", "融資餘額 (仟元)");
+  } catch (e) {
+    document.querySelectorAll(".loading").forEach(el => {
+      el.textContent = "資料載入失敗";
+    });
+    console.error(e);
+  }
+}
+
+loadData();
 </script>
 </body>
 </html>
