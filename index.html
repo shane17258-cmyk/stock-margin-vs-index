@@ -136,7 +136,7 @@ function renderChart(containerId, data, idxName, marginLabel) {
         type: "line",
         data: idxVals,
         yAxisIndex: 0,
-        smooth: true,
+        smooth: false,
         symbol: "none",
         lineStyle: { color: "#1a73e8", width: 2 },
         areaStyle: { color: "rgba(26,115,232,0.08)" }
@@ -146,7 +146,7 @@ function renderChart(containerId, data, idxName, marginLabel) {
         type: "line",
         data: marginVals,
         yAxisIndex: 1,
-        smooth: true,
+        smooth: false,
         symbol: "none",
         lineStyle: { color: "#e74c3c", width: 2 },
         areaStyle: { color: "rgba(231,76,60,0.08)" }
