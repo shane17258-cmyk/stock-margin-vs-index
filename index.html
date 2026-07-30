@@ -96,7 +96,8 @@ function renderChart(containerId, data, idxName, marginLabel) {
           s += `${p.marker} ${p.seriesName}: <strong>${fmtNum(p.value)}</strong><br/>`;
         });
         return s;
-      }
+      },
+      axisPointer: { type: "cross", crossStyle: { color: "#aaa", type: "dashed" } }
     },
     legend: {
       data: [idxName, marginLabel],
